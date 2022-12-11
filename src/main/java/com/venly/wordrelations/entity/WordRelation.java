@@ -52,7 +52,9 @@ public class WordRelation {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         final var baseModel = (WordRelation) o;
-        return id != null && Objects.equals(id, baseModel.id);
+        return Objects.equals(word, baseModel.word)
+                && Objects.equals(anotherWord, baseModel.anotherWord)
+                && Objects.equals(relation, baseModel.relation);
     }
 
     @Override

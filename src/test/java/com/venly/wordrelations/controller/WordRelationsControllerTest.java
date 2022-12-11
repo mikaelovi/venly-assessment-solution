@@ -1,5 +1,6 @@
 package com.venly.wordrelations.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.venly.wordrelations.entity.WordRelation;
 import com.venly.wordrelations.enumeration.RelationType;
@@ -13,7 +14,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -57,5 +62,30 @@ class WordRelationsControllerTest {
         assertEquals(request.getWord(), resultContent.getWord());
         assertEquals(request.getAnotherWord(), resultContent.getAnotherWord());
         assertEquals(request.getRelation(), resultContent.getRelation());
+    }
+
+
+    @Test
+    void testListEntries() throws Exception {
+        final WordRelation[] wordRelations = new WordRelation[3];
+
+        wordRelations[0] = new WordRelation("son", "daughter", RelationType.ANTONYM);
+        wordRelations[1] = new WordRelation("road", "street", RelationType.SYNONYM);
+        wordRelations[2] = new WordRelation("road", "avenue", RelationType.RELATED);
+
+        when(wordRelationService.findAll()).thenReturn(Arrays.asList(wordRelations));
+
+        final var result = mockMvc.perform(MockMvcRequestBuilders.get("/word-rel/all")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status()
+                        .isOk()).andReturn();
+
+        final var resultContent = mapper.readValue(result.getResponse().getContentAsString(), new TypeReference<List<WordRelation>>() {
+        });
+
+        assertNotNull(resultContent);
+        assertNotEquals(0, resultContent.size());
+        assertEquals(resultContent.size(), wordRelations.length);
     }
 }
