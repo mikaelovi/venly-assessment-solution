@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -53,8 +54,8 @@ class WordRelationsControllerTest {
                         .content(mapper.writeValueAsString(request))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status()
-                        .isCreated()).andReturn();
+                .andExpect(status().isCreated())
+                .andReturn();
 
         final var resultContent = mapper.readValue(result.getResponse().getContentAsString(), WordRelation.class);
 
@@ -78,8 +79,8 @@ class WordRelationsControllerTest {
         final var result = mockMvc.perform(MockMvcRequestBuilders.get("/word-rel/all")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status()
-                        .isOk()).andReturn();
+                .andExpect(status().isOk())
+                .andReturn();
 
         final var resultContent = mapper.readValue(result.getResponse().getContentAsString(), new TypeReference<List<WordRelation>>() {
         });
@@ -87,5 +88,74 @@ class WordRelationsControllerTest {
         assertNotNull(resultContent);
         assertNotEquals(0, resultContent.size());
         assertEquals(resultContent.size(), wordRelations.length);
+    }
+
+    @Test
+    void testFilterByRelationTypeWithNullRelation() throws Exception {
+        final var relation = "somedummyrelation";
+
+        mockMvc.perform(MockMvcRequestBuilders.get(String.format("/word-rel/filter-by-relation/%s", relation))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andReturn();
+    }
+
+    @Test
+    void testFilterByRelationTypeWithEmptyData() throws Exception {
+        final var relation = "synonym";
+
+        when(wordRelationService.findAll()).thenReturn(new ArrayList<>());
+
+        mockMvc.perform(MockMvcRequestBuilders.get(String.format("/word-rel/filter-by-relation/%s", relation))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNoContent())
+                .andReturn();
+    }
+
+    @Test
+    void testFilterByRelationTypeWithNoMatchingResult() throws Exception {
+        final WordRelation[] wordRelations = new WordRelation[3];
+
+        wordRelations[0] = new WordRelation("son", "daughter", RelationType.ANTONYM);
+        wordRelations[1] = new WordRelation("road", "avenue", RelationType.RELATED);
+        wordRelations[2] = new WordRelation("street", "house", RelationType.RELATED);
+
+        final var relation = "synonym";
+
+        when(wordRelationService.findAll()).thenReturn(Arrays.asList(wordRelations));
+
+        final var result = mockMvc.perform(MockMvcRequestBuilders.get(String.format("/word-rel/filter-by-relation/%s", relation))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound())
+                .andReturn();
+    }
+
+    @Test
+    void testFilterByRelationTypeWithMatchingResult() throws Exception {
+        final WordRelation[] wordRelations = new WordRelation[3];
+
+        wordRelations[0] = new WordRelation("son", "daughter", RelationType.ANTONYM);
+        wordRelations[2] = new WordRelation("road", "avenue", RelationType.RELATED);
+        wordRelations[1] = new WordRelation("road", "street", RelationType.SYNONYM);
+
+        final var relation = "synonym";
+
+        when(wordRelationService.findAll()).thenReturn(Arrays.asList(wordRelations));
+
+        final var result = mockMvc.perform(MockMvcRequestBuilders.get(String.format("/word-rel/filter-by-relation/%s", relation))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andReturn();
+
+        final var resultContent = mapper.readValue(result.getResponse().getContentAsString(), WordRelation.class);
+
+        assertNotNull(resultContent);
+        assertEquals(wordRelations[1].getWord(), resultContent.getWord());
+        assertEquals(wordRelations[1].getAnotherWord(), resultContent.getAnotherWord());
+        assertEquals(wordRelations[1].getRelation(), resultContent.getRelation());
     }
 }
